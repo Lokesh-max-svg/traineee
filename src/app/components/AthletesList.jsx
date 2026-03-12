@@ -4,9 +4,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { FiSearch, FiUser, FiActivity, FiCalendar } from 'react-icons/fi';
 import AthleteDetail from './AthleteDetail';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 
-const AthletesList = ({ jwtToken }) => {
+const AthletesList = () => {
   const [athletes, setAthletes] = useState([]);
   const [attendanceData, setAttendanceData] = useState(null);
   const [athleteNames, setAthleteNames] = useState({});
@@ -20,25 +21,16 @@ const AthletesList = ({ jwtToken }) => {
 
   useEffect(() => {
     fetchData();
-  }, [jwtToken]);
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
       // Fetch athletes and attendance data in parallel
       const [athletesRes, attendance7dRes, attendance30dRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/trainer-app/clients`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        }),
-        fetch(`${API_BASE_URL}/trainer-app/attendance?range=7d`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        }),
-        fetch(`${API_BASE_URL}/trainer-app/attendance?range=30d`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        }),
+        apiFetch('/trainer-app/clients'),
+        apiFetch('/trainer-app/attendance?range=7d'),
+        apiFetch('/trainer-app/attendance?range=30d'),
       ]);
 
       if (!athletesRes.ok) throw new Error('Failed to fetch athletes');
@@ -207,7 +199,6 @@ const AthletesList = ({ jwtToken }) => {
       <AthleteDetail
         athlete={selectedAthlete}
         onBack={() => setSelectedAthlete(null)}
-        jwtToken={jwtToken}
       />
     );
   }

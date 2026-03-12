@@ -10,10 +10,10 @@ import {
   getAttendance7d,
   getAttendance30d,
 } from '../lib/dataUtils';
-import { auth } from '../api/firebase';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 
-const AthleteDetail = ({ athlete, onBack, jwtToken }) => {
+const AthleteDetail = ({ athlete, onBack }) => {
   const [athleteSessions, setAthleteSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName,setuserName] = useState('');
@@ -33,22 +33,12 @@ const AthleteDetail = ({ athlete, onBack, jwtToken }) => {
 
   useEffect(() => {
     fetchAthleteSessions();
-  }, [jwtToken, athlete.id]);
+  }, [athlete.id]);
   console.log(athlete);
   const fetchAthleteSessions = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-      const response = await fetch(
-        `${API_BASE_URL}/trainer-app/sessions/today`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
+      const response = await apiFetch('/trainer-app/sessions/today');
 
       if (response.ok) {
         const data = await response.json();

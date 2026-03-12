@@ -7,6 +7,7 @@ import {
   FiX, FiCheck, FiAlertTriangle, FiActivity, FiTarget, FiPlay,
 } from 'react-icons/fi';
 import { MotionReplayModal, useMotionReplayModal } from './sessions';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -19,7 +20,7 @@ const formatDateForAPI = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const SessionsToday = ({ jwtToken, trainer }) => {
+const SessionsToday = ({ trainer }) => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState('all');
@@ -34,10 +35,9 @@ const SessionsToday = ({ jwtToken, trainer }) => {
 
   useEffect(() => {
     fetchSessions();
-  }, [jwtToken, selectedDate]);
+  }, [selectedDate]);
 
   const fetchSessions = async () => {
-    if (!jwtToken) return;
     setLoading(true);
 
     try {
@@ -47,9 +47,7 @@ const SessionsToday = ({ jwtToken, trainer }) => {
         ? `${API_BASE}/trainer-app/sessions/today`
         : `${API_BASE}/trainer-app/sessions/by-date?date=${dateStr}`;
 
-      const response = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      });
+      const response = await apiFetch(endpoint);
 
       if (!response.ok) throw new Error('Failed to fetch sessions');
 
@@ -110,9 +108,7 @@ const SessionsToday = ({ jwtToken, trainer }) => {
   const fetchSessionDetail = async (sessionId) => {
     setSessionDetailLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/trainer-app/sessions/${sessionId}`, {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      });
+      const response = await apiFetch(`${API_BASE}/trainer-app/sessions/${sessionId}`);
 
       if (!response.ok) throw new Error('Failed to fetch session details');
 
@@ -223,7 +219,6 @@ const SessionsToday = ({ jwtToken, trainer }) => {
           onClose={motionReplay.closeModal}
           session={motionReplay.session}
           athleteName={motionReplay.athleteName}
-          jwtToken={jwtToken}
         />
       </>
     );

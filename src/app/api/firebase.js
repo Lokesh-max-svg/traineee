@@ -2,7 +2,12 @@
 import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  inMemoryPersistence,
+  setPersistence,
+} from 'firebase/auth';
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
 
@@ -25,5 +30,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
+const authPersistenceReady = setPersistence(auth, inMemoryPersistence).catch((error) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Failed to set Firebase auth persistence:', error);
+  }
+});
 
-export { db, auth, googleProvider , firebaseConfig ,storage};
+export { db, auth, authPersistenceReady, googleProvider, firebaseConfig, storage };

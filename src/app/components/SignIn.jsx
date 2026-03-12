@@ -1,34 +1,27 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { FaEnvelope, FaLock, FaEyeSlash } from 'react-icons/fa';
 import { MdOutlineVisibility } from 'react-icons/md';
 import { FcGoogle } from 'react-icons/fc';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider } from '../api/firebase';
+import { auth, authPersistenceReady, googleProvider } from '../api/firebase';
 import { useRouter } from 'next/navigation';
 import LoadingOverlay from './LoadingOverlay';
 import { toast } from 'sonner';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch } from '../store/hooks';
 import { loginWithFirebaseToken } from '../store/authSlice';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function SignInForm() {
   const dispatch = useAppDispatch();
-  const authStatus = useAppSelector((state) => state.auth.status);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loadingAction, setLoadingAction] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const isLoading = loadingAction !== null;
-
-  useEffect(() => {
-    if (authStatus === 'authenticated') {
-      router.replace('/trainer');
-    }
-  }, [authStatus, router]);
 
 
  const handleEmailLogin = async (e) => {
@@ -52,6 +45,8 @@ function SignInForm() {
   let shouldResetLoading = true;
 
   try {
+    await authPersistenceReady;
+
     // Step 1: Authenticate with Firebase using email/password
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
@@ -108,6 +103,8 @@ function SignInForm() {
     let shouldResetLoading = true;
 
     try {
+      await authPersistenceReady;
+
       // Step 1: Get Google credentials via Firebase popup
       const result = await signInWithPopup(auth, googleProvider);
 

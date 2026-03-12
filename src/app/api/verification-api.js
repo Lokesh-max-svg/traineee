@@ -1,6 +1,7 @@
 // app/api/verification-api.js
+import { apiFetch, buildApiUrl } from './client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 class VerificationAPI {
    
@@ -8,10 +9,7 @@ class VerificationAPI {
    * Verify user authentication
    */
  async getCurrentUser() {
-   
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-     credentials: 'include',
-    });
+    const response = await apiFetch(`${API_BASE_URL}/auth/me`);
 
     if (!response.ok) {
       return { authenticated: false };
@@ -23,17 +21,12 @@ class VerificationAPI {
    * Verify user has gym access
    */
 async verifyGymAccess() { 
- 
-  const response = await fetch(
-    `${API_BASE_URL}/auth/verify-gym-access-headcoach`,
-    {
-      method: "POST",
-      credentials: 'include',
-      headers: {
-        "Content-Type": "application/json"
-      },
-    }
-  );
+  const response = await apiFetch(buildApiUrl(`${API_BASE_URL}/auth/verify-gym-access-headcoach`), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+  });
 
   const data = await response.json();
 
@@ -46,7 +39,7 @@ async verifyGymAccess() {
 
 async getUserName(userId){
   try {
-      const response = await fetch(`${API_BASE_URL}/username?userId=${userId}`);
+      const response = await apiFetch(`${API_BASE_URL}/username?userId=${userId}`);
       if(!response.ok){
         console.error('Failed to fetch the session');
       }
@@ -62,9 +55,8 @@ async getUserName(userId){
    * Logout user
    */
  async logout() {
-  await fetch(`${API_BASE_URL}/auth/logout`, {
+  await apiFetch(`${API_BASE_URL}/auth/logout`, {
     method: 'POST',
-    credentials: 'include', // send session cookie
   });
 }
 }

@@ -18,6 +18,7 @@ import Attendance from './Attendance';
 import LoadingOverlay from './LoadingOverlay';
 import NotificationBell from './NotificationBell';
 import WorkoutSchedulePlanner from './WorkoutSchedulePlanner';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutTrainer } from '../store/authSlice';
@@ -38,7 +39,6 @@ const TrainerDashboard = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const trainer = useAppSelector((state) => state.auth.trainer);
-  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
   const authStatus = useAppSelector((state) => state.auth.status);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ const TrainerDashboard = () => {
       return;
     }
 
-    if (authStatus !== 'authenticated' || !jwtToken) {
+    if (authStatus !== 'authenticated') {
       return;
     }
 
@@ -63,10 +63,7 @@ const TrainerDashboard = () => {
       try {
         setLoading(true);
 
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const res = await fetch(`${API_BASE_URL}/trainer-app/clients`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        });
+        const res = await apiFetch('/trainer-app/clients');
         if (res.ok) {
           const data = await res.json();
           const athletesList = data.data || [];
@@ -113,7 +110,7 @@ const TrainerDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [authStatus, jwtToken, router]);
+  }, [authStatus, router]);
 
   // Enrich athletes with names
   const enrichedAthletes = useMemo(() => {
@@ -142,19 +139,19 @@ const TrainerDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <CommandCenter trainer={trainer} jwtToken={jwtToken} onNavigate={setActiveTab} athletes={enrichedAthletes} />;
+        return <CommandCenter trainer={trainer} onNavigate={setActiveTab} athletes={enrichedAthletes} />;
       case 'athletes':
-        return <AthletesList jwtToken={jwtToken} />;
+        return <AthletesList />;
       case 'sessions':
-        return <SessionsToday jwtToken={jwtToken} trainer={trainer} />;
+        return <SessionsToday trainer={trainer} />;
       case 'alerts':
-        return <Alerts jwtToken={jwtToken} />;
+        return <Alerts />;
       case 'analytics':
-        return <AthleteAnalysis jwtToken={jwtToken} athletes={enrichedAthletes} />;
+        return <AthleteAnalysis athletes={enrichedAthletes} />;
       case 'attendance':
-        return <Attendance jwtToken={jwtToken} />;
+        return <Attendance />;
       case 'workouts':
-        return <WorkoutSchedulePlanner jwtToken={jwtToken} trainer={trainer} />;
+        return <WorkoutSchedulePlanner trainer={trainer} />;
       default:
         return <PlaceholderPage title={NAV_ITEMS.find(n => n.id === activeTab)?.label || activeTab} />;
     }
@@ -231,7 +228,7 @@ const TrainerDashboard = () => {
           <div className="flex items-center justify-between px-8 py-4">
             <div />
             <div className="flex items-center gap-4">
-              <NotificationBell jwtToken={jwtToken} />
+              <NotificationBell />
               <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition">
                 <LogOut className="w-4 h-4" />
                 <span className="text-sm font-medium">Logout</span>
@@ -256,7 +253,7 @@ const TrainerDashboard = () => {
               <span className="font-semibold text-gray-900">SMARTAN</span>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationBell jwtToken={jwtToken} />
+              <NotificationBell />
               <button onClick={handleLogout} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition">
                 <LogOut className="w-5 h-5" />
               </button>
@@ -293,19 +290,16 @@ const TrainerDashboard = () => {
 
 // ─── Command Center Dashboard ────────────────────────────────────────────────
 
-const CommandCenter = ({ trainer, jwtToken, onNavigate, athletes = [] }) => {
+const CommandCenter = ({ trainer, onNavigate, athletes = [] }) => {
   const [data, setData] = useState({ sessions: [], alerts: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const headers = { Authorization: `Bearer ${jwtToken}` };
-
         const [sessionsRes, alertsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/trainer-app/sessions/today`, { headers }),
-          fetch(`${API_BASE_URL}/trainer-app/alerts`, { headers }),
+          apiFetch('/trainer-app/sessions/today'),
+          apiFetch('/trainer-app/alerts'),
         ]);
 
         const sessionsData = await sessionsRes.json();
@@ -322,8 +316,8 @@ const CommandCenter = ({ trainer, jwtToken, onNavigate, athletes = [] }) => {
       }
     };
 
-    if (jwtToken) fetchAll();
-  }, [jwtToken]);
+    fetchAll();
+  }, []);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',

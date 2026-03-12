@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment } from "@react-three/drei";
 import * as THREE from "three";
 import { Loader2 } from "lucide-react";
+import { apiFetch } from "../../api/client";
 
 // Cache for SMPL face indices (loaded once, reused)
 let cachedFaceIndices = null;
@@ -31,12 +32,7 @@ async function loadSmplFaceIndices(apiBaseUrl, jwtToken = null) {
 
   faceIndicesPromise = (async () => {
     try {
-      const headers = {};
-      if (jwtToken) {
-        headers["Authorization"] = `Bearer ${jwtToken}`;
-      }
-
-      const response = await fetch(`${apiBaseUrl}/trainer-app/smpl/faces`, { headers });
+      const response = await apiFetch(`${apiBaseUrl}/trainer-app/smpl/faces`);
       console.log("[SMPL] Face indices response status:", response.status);
 
       if (!response.ok) {

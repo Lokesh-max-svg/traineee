@@ -1,11 +1,25 @@
 'use client';
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { auth } from '../api/firebase';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+function extractTrainer(data) {
+  const candidates = [
+    data?.data?.trainer,
+    data?.trainer,
+    data?.data?.user,
+    data?.user,
+    data?.data?.session?.trainer,
+    data?.data,
+  ];
+
+  return candidates.find(
+    (candidate) => candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+  ) || null;
+}
 
 function clearLegacyStorage() {
   if (typeof window === 'undefined') {
@@ -17,7 +31,7 @@ function clearLegacyStorage() {
 }
 
 async function authenticateTrainer(firebaseToken) {
-  const response = await fetch(`${API_BASE_URL}/trainer-app/auth/login`, {
+  const response = await apiFetch('/trainer-app/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ firebaseToken }),
@@ -30,25 +44,35 @@ async function authenticateTrainer(firebaseToken) {
   }
 
   return {
-    trainer: data.data.trainer,
-    jwtToken: data.data.token,
+    trainer: extractTrainer(data),
+    jwtToken: data?.data?.token || null,
   };
 }
 
-function waitForFirebaseUser() {
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user);
-    });
-  });
+async function getCurrentTrainerFromSession() {
+  const session = await verificationApi.getCurrentUser();
+
+  if (!session || session.authenticated === false) {
+    return null;
+  }
+
+  return extractTrainer(session);
 }
 
 export const loginWithFirebaseToken = createAsyncThunk(
   'auth/loginWithFirebaseToken',
   async (firebaseToken) => {
     clearLegacyStorage();
-    return authenticateTrainer(firebaseToken);
+    const authenticated = await authenticateTrainer(firebaseToken);
+    await signOut(auth);
+    const trainer = (await getCurrentTrainerFromSession()) || authenticated.trainer;
+    if (!trainer && !authenticated.jwtToken) {
+      throw new Error('Login succeeded, but no usable session was returned');
+    }
+    return {
+      trainer,
+      jwtToken: authenticated.jwtToken,
+    };
   }
 );
 
@@ -56,15 +80,12 @@ export const restoreAuthSession = createAsyncThunk(
   'auth/restoreAuthSession',
   async () => {
     clearLegacyStorage();
-
-    const user = await waitForFirebaseUser();
-
-    if (!user) {
+    const trainer = await getCurrentTrainerFromSession();
+    if (!trainer) {
       return null;
     }
 
-    const firebaseToken = await user.getIdToken();
-    return authenticateTrainer(firebaseToken);
+    return { trainer, jwtToken: null };
   }
 );
 

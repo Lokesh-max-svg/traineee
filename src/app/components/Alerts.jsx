@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { FiAlertTriangle, FiRefreshCw, FiClock, FiActivity } from 'react-icons/fi';
+import { apiFetch } from '../api/client';
 import verificationApi from '../api/verification-api';
 
-const Alerts = ({ jwtToken }) => {
+const Alerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [athleteNames, setAthleteNames] = useState({});
   const [loading, setLoading] = useState(true);
@@ -15,21 +16,11 @@ const Alerts = ({ jwtToken }) => {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 60000);
     return () => clearInterval(interval);
-  }, [jwtToken]);
+  }, []);
 
   const fetchAlerts = async () => {
     try {
-      const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/trainer-app/alerts`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
+      const response = await apiFetch('/api/trainer-app/alerts');
 
       if (!response.ok) {
         throw new Error('Failed to fetch alerts');

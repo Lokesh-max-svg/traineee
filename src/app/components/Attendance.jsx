@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { apiFetch } from "../api/client";
 import verificationApi from "../api/verification-api";
 
 // Import modular components
@@ -23,7 +24,7 @@ function LoadingCard() {
   );
 }
 
-export default function Attendance({ jwtToken }) {
+export default function Attendance() {
   const [range, setRange] = useState("30d");
   const [attendance, setAttendance] = useState(null);
   const [athleteNames, setAthleteNames] = useState({});
@@ -34,13 +35,10 @@ export default function Attendance({ jwtToken }) {
 
   // Fetch attendance data
   useEffect(() => {
-    if (!jwtToken) return;
     const fetchAttendance = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/trainer-app/attendance?range=${range}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        });
+        const res = await apiFetch(`${API_BASE}/trainer-app/attendance?range=${range}`);
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         setAttendance(data.data);
@@ -71,20 +69,18 @@ export default function Attendance({ jwtToken }) {
       }
     };
     fetchAttendance();
-  }, [jwtToken, range]);
+  }, [range]);
 
   // Fetch date details
   useEffect(() => {
-    if (!jwtToken || !selectedDate) {
+    if (!selectedDate) {
       setDateDetail(null);
       return;
     }
     const fetchDateDetail = async () => {
       setDateLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/trainer-app/attendance/by-date?date=${selectedDate}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        });
+        const res = await apiFetch(`${API_BASE}/trainer-app/attendance/by-date?date=${selectedDate}`);
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
         setDateDetail(data.data);
@@ -95,7 +91,7 @@ export default function Attendance({ jwtToken }) {
       }
     };
     fetchDateDetail();
-  }, [jwtToken, selectedDate]);
+  }, [selectedDate]);
 
   // Enrich athletes with names
   const enrichedAthletes = useMemo(() => {

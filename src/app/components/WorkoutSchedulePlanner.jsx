@@ -5,6 +5,7 @@ import {
   Search, Trash2, GripVertical, Calendar, ChevronLeft, ChevronRight,
   Plus, Edit3, X, Save, ArrowLeft, Dumbbell, User, Clock
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 import workoutAPI from '../api/workout-api';
 import exerciseApi from '../api/exercise-api';
 import verificationApi from '../api/verification-api';
@@ -30,7 +31,7 @@ const getGymId = (trainer) => {
   return null;
 };
 
-const WorkoutSchedulePlanner = ({ jwtToken, trainer }) => {
+const WorkoutSchedulePlanner = ({ trainer }) => {
   // Athletes list state
   const [athletes, setAthletes] = useState([]);
   const [athleteNames, setAthleteNames] = useState({});
@@ -66,7 +67,7 @@ const WorkoutSchedulePlanner = ({ jwtToken, trainer }) => {
     fetchAthletes();
     fetchMuscleGroups();
     fetchExercises();
-  }, [jwtToken]);
+  }, []);
 
   // Update week dates
   useEffect(() => {
@@ -83,11 +84,7 @@ const WorkoutSchedulePlanner = ({ jwtToken, trainer }) => {
   const fetchAthletes = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-      const response = await fetch(`${API_BASE_URL}/trainer-app/clients`, {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      });
+      const response = await apiFetch('/trainer-app/clients');
 
       if (!response.ok) throw new Error('Failed to fetch athletes');
 

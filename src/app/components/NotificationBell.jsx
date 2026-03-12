@@ -3,25 +3,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Check, User, Clock, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiFetch } from '../api/client';
 
-const NotificationBell = ({ jwtToken }) => {
+const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingIds, setProcessingIds] = useState(new Set());
   const dropdownRef = useRef(null);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   // Fetch pending requests
   const fetchRequests = async () => {
-    if (!jwtToken) return;
-
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/trainer-app/gym-requests`, {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      });
+      const res = await apiFetch('/trainer-app/gym-requests');
 
       if (res.ok) {
         const data = await res.json();
@@ -36,13 +31,11 @@ const NotificationBell = ({ jwtToken }) => {
 
   // Fetch on mount and when dropdown opens
   useEffect(() => {
-    if (jwtToken) {
-      fetchRequests();
-    }
-  }, [jwtToken]);
+    fetchRequests();
+  }, []);
 
   useEffect(() => {
-    if (isOpen && jwtToken) {
+    if (isOpen) {
       fetchRequests();
     }
   }, [isOpen]);
@@ -69,10 +62,9 @@ const NotificationBell = ({ jwtToken }) => {
     setProcessingIds((prev) => new Set([...prev, odid]));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trainer-app/gym-requests/${odid}/accept`, {
+      const res = await apiFetch(`/trainer-app/gym-requests/${odid}/accept`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
           'Content-Type': 'application/json',
         },
       });
@@ -101,10 +93,9 @@ const NotificationBell = ({ jwtToken }) => {
     setProcessingIds((prev) => new Set([...prev, odid]));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/trainer-app/gym-requests/${odid}/reject`, {
+      const res = await apiFetch(`/trainer-app/gym-requests/${odid}/reject`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
           'Content-Type': 'application/json',
         },
       });

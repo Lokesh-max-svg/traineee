@@ -5,6 +5,7 @@ import {
   FiActivity, FiTarget, FiUser, FiCalendar, FiArrowUp, FiArrowDown,
   FiChevronLeft, FiChevronRight, FiZap, FiPercent, FiSearch,
 } from "react-icons/fi";
+import { apiFetch } from "../api/client";
 import verificationApi from "../api/verification-api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -1228,7 +1229,7 @@ function AnalyticsDetailView({ athlete, analytics, loading, error, range, setRan
 }
 
 // Main Component
-export default function AthleteAnalysis({ jwtToken, athletes = [] }) {
+export default function AthleteAnalysis({ athletes = [] }) {
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [range, setRange] = useState("30d");
   const [analytics, setAnalytics] = useState(null);
@@ -1274,16 +1275,15 @@ export default function AthleteAnalysis({ jwtToken, athletes = [] }) {
   }, [athletes, athleteNames]);
 
   useEffect(() => {
-    if (!selectedAthlete || !jwtToken) return;
+    if (!selectedAthlete) return;
 
     async function fetchAnalytics() {
       setLoading(true);
       setError(null);
 
       try {
-        const res = await fetch(
+        const res = await apiFetch(
           `${API_BASE}/trainer-app/analytics/${selectedAthlete.id}?range=${range}`,
-          { headers: { Authorization: `Bearer ${jwtToken}` } }
         );
 
         if (!res.ok) throw new Error("Failed to fetch analytics");
@@ -1303,7 +1303,7 @@ export default function AthleteAnalysis({ jwtToken, athletes = [] }) {
     }
 
     fetchAnalytics();
-  }, [selectedAthlete, range, jwtToken]);
+  }, [selectedAthlete, range]);
 
   const handleSelectAthlete = (athlete) => {
     // Find the enriched version

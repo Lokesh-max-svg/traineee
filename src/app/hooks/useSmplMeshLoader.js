@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { apiFetch } from "../api/client";
 
 /**
  * SMPL mesh has 6890 vertices, each with x, y, z coordinates
@@ -55,14 +56,8 @@ export function useSmplMeshLoader(binUrl, jwtToken = null) {
       setError(null);
 
       try {
-        const headers = {};
-        if (jwtToken) {
-          headers["Authorization"] = `Bearer ${jwtToken}`;
-        }
-
-        const response = await fetch(binUrl, {
+        const response = await apiFetch(binUrl, {
           signal: controller.signal,
-          headers,
         });
 
         if (!response.ok) {
@@ -99,7 +94,7 @@ export function useSmplMeshLoader(binUrl, jwtToken = null) {
     return () => {
       controller.abort();
     };
-  }, [binUrl, jwtToken]);
+  }, [binUrl]);
 
   return { vertices, loading, error };
 }
@@ -145,12 +140,6 @@ export function useSmplFramePreloader(frameUrls, jwtToken = null) {
     const loadedFrames = new Map();
     let loadedCount = 0;
 
-    // Build headers with JWT token if provided
-    const headers = {};
-    if (jwtToken) {
-      headers["Authorization"] = `Bearer ${jwtToken}`;
-    }
-
     try {
       // Load frames in batches to avoid overwhelming the network
       const batchSize = 5;
@@ -160,9 +149,8 @@ export function useSmplFramePreloader(frameUrls, jwtToken = null) {
         const batch = frameUrls.slice(i, i + batchSize);
         const batchPromises = batch.map(async (url) => {
           try {
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
               signal: controller.signal,
-              headers,
             });
             if (!response.ok) {
               throw new Error(`Failed to load: ${url}`);
@@ -201,7 +189,7 @@ export function useSmplFramePreloader(frameUrls, jwtToken = null) {
     } finally {
       setLoading(false);
     }
-  }, [frameUrls, jwtToken]);
+  }, [frameUrls]);
 
   useEffect(() => {
     loadFrames();
@@ -319,12 +307,7 @@ export function useFrameFilenames(folderPath, apiBaseUrl, jwtToken = null) {
           throw new Error(`Unsupported storage prefix: ${prefix}. Expected 'smpl_data' or 'pose_data'`);
         }
 
-        const headers = {};
-        if (jwtToken) {
-          headers["Authorization"] = `Bearer ${jwtToken}`;
-        }
-
-        const response = await fetch(url, { headers });
+        const response = await apiFetch(url);
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to fetch filenames: ${response.status} - ${errorText}`);
@@ -353,7 +336,7 @@ export function useFrameFilenames(folderPath, apiBaseUrl, jwtToken = null) {
     }
 
     fetchFilenames();
-  }, [folderPath, apiBaseUrl, jwtToken]);
+  }, [folderPath, apiBaseUrl]);
 
   return { filenames, loading, error, storageType };
 }
