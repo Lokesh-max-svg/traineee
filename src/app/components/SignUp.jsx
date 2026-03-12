@@ -11,6 +11,8 @@ import { useRouter } from 'next/navigation';
 import LoadingOverlay from './LoadingOverlay'; 
 import { toast } from 'sonner';
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const SignUpForm = () => {
   const router = useRouter();
 
@@ -19,13 +21,18 @@ const SignUpForm = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const isLoading = loadingAction !== null;
  
   //  Use Firebase's built-in email verification
   const handleSignUp = async (e) => {
     e.preventDefault();
+
+    if (isLoading) {
+      return;
+    }
     
     if (!name.trim()) {
       toast.error("Please enter your name");
@@ -52,7 +59,8 @@ const SignUpForm = () => {
       return;
     }
 
-    setLoading(true);
+    setLoadingAction('email');
+    let shouldResetLoading = true;
 
     try {
       // Step 1: Create user with Firebase Client SDK
@@ -82,10 +90,10 @@ const SignUpForm = () => {
       }
 
       toast.success("Account created! Please check your email to verify.");
-      
-      setTimeout(() => {
-        router.push('/verify-email');
-      }, 1500);
+      await wait(1500);
+      shouldResetLoading = false;
+      router.push('/verify-email');
+      return;
       
     } catch (err) {
       if (process.env.NODE_ENV === 'development') console.error("Signup error:", err);
@@ -104,13 +112,20 @@ const SignUpForm = () => {
       
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (shouldResetLoading) {
+        setLoadingAction(null);
+      }
     }
   };
 
   // Google Sign-in - send to backend for verification
   const handleGoogleSignUp = async () => {
-    setLoading(true);
+    if (isLoading) {
+      return;
+    }
+
+    setLoadingAction('google');
+    let shouldResetLoading = true;
     
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -132,7 +147,10 @@ const SignUpForm = () => {
       }
 
       toast.success("Signed in with Google!");
+      await wait(800);
+      shouldResetLoading = false;
       router.push('/signin');
+      return;
       
     } catch (err) {
       if (process.env.NODE_ENV === 'development') console.error("Google signup error:", err);
@@ -148,13 +166,15 @@ const SignUpForm = () => {
       }
       
     } finally {
-      setLoading(false);
+      if (shouldResetLoading) {
+        setLoadingAction(null);
+      }
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gradient-to-r  text-white relative">
-      {loading && <LoadingOverlay />}
+      {isLoading && <LoadingOverlay />}
 
       <div className="w-full max-w-md p-8 mx-auto">
         <h2 className="text-3xl font-bold text-[#93F5AE] mb-4">Sign up</h2>
@@ -169,6 +189,7 @@ const SignUpForm = () => {
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name"
               required
+              disabled={isLoading}
               className="peer w-full px-4 pt-6 pb-1 text-white bg-transparent border border-white rounded-xl placeholder-transparent focus:outline-none"
             />
             <label 
@@ -188,6 +209,7 @@ const SignUpForm = () => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               required
+              disabled={isLoading}
               className="peer w-full px-4 pt-6 pb-1 text-white bg-transparent border border-white rounded-xl placeholder-transparent focus:outline-none"
             />
             <label 
@@ -207,6 +229,7 @@ const SignUpForm = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               required
+              disabled={isLoading}
               className="peer w-full px-4 pt-6 pb-2 text-white bg-transparent border border-white rounded-xl placeholder-transparent focus:outline-none pr-10"
             />
             <label 
@@ -217,6 +240,7 @@ const SignUpForm = () => {
             </label>
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-4 top-5 text-gray-400 hover:text-white"
             >
@@ -233,6 +257,7 @@ const SignUpForm = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm Password"
               required
+              disabled={isLoading}
               className="peer w-full px-4 pt-6 pb-2 text-white bg-transparent border border-white rounded-xl placeholder-transparent focus:outline-none pr-10"
             />
             <label 
@@ -243,6 +268,7 @@ const SignUpForm = () => {
             </label>
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute right-4 top-5 text-gray-400 hover:text-white"
             >
@@ -258,6 +284,7 @@ const SignUpForm = () => {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone Number"
+              disabled={isLoading}
               className="peer w-full px-4 pt-6 pb-2 text-white bg-transparent border border-white rounded-xl placeholder-transparent focus:outline-none pr-10"
             />
             <label 
@@ -271,10 +298,10 @@ const SignUpForm = () => {
 
           <button 
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full py-2 rounded-md bg-[#93F5AE] text-black font-semibold hover:bg-[#7ce49e] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating Account..." : "Create Account"}
+            {loadingAction === 'email' ? "Creating Account..." : "Create Account"}
           </button>
 
           <div className="w-full text-center text-sm text-white">or</div>
@@ -282,11 +309,11 @@ const SignUpForm = () => {
           <button 
             type="button" 
             onClick={handleGoogleSignUp}
-            disabled={loading}
+            disabled={isLoading}
             className="w-full py-2 flex items-center justify-center bg-white text-black rounded-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FcGoogle className="mr-2 text-lg" />
-            Continue with Google
+            {loadingAction === 'google' ? 'Continuing with Google...' : 'Continue with Google'}
           </button>
 
           <p className="w-full text-sm text-white text-center">

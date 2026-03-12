@@ -22,7 +22,7 @@ class VerificationAPI {
   /**
    * Verify user has gym access
    */
-async verifyGymAccess() {
+async verifyGymAccess() { 
  
   const response = await fetch(
     `${API_BASE_URL}/auth/verify-gym-access-headcoach`,

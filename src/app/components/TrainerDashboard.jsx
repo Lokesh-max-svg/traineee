@@ -19,6 +19,8 @@ import LoadingOverlay from './LoadingOverlay';
 import NotificationBell from './NotificationBell';
 import WorkoutSchedulePlanner from './WorkoutSchedulePlanner';
 import verificationApi from '../api/verification-api';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { logoutTrainer } from '../store/authSlice';
 import {
   getTeamReadinessScore, getLoadBalanceScore,
 } from '../lib/dataUtils';
@@ -33,37 +35,45 @@ const NAV_ITEMS = [
 ];
 
 const TrainerDashboard = () => {
+  const dispatch = useAppDispatch();
   const router = useRouter();
+  const trainer = useAppSelector((state) => state.auth.trainer);
+  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const [activeTab, setActiveTab] = useState('overview');
-  const [trainer, setTrainer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [jwtToken, setJwtToken] = useState(null);
   const [athletes, setAthletes] = useState([]);
   const [athleteNames, setAthleteNames] = useState({});
 
   useEffect(() => {
+    if (authStatus === 'unauthenticated') {
+      router.replace('/signin');
+      return;
+    }
+
+    if (authStatus !== 'authenticated' || !jwtToken) {
+      return;
+    }
+
+    let isMounted = true;
+
     const initializeTrainer = async () => {
       try {
-        const storedTrainer = localStorage.getItem('trainerData');
-        const token = localStorage.getItem('jwtToken');
-
-        if (!storedTrainer || !token) {
-          router.push('/signin');
-          return;
-        }
-
-        setTrainer(JSON.parse(storedTrainer));
-        setJwtToken(token);
+        setLoading(true);
 
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const res = await fetch(`${API_BASE_URL}/trainer-app/clients`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${jwtToken}` },
         });
         if (res.ok) {
           const data = await res.json();
           const athletesList = data.data || [];
+          if (!isMounted) {
+            return;
+          }
+
           setAthletes(athletesList);
 
           // Fetch names for all athletes
@@ -81,19 +91,29 @@ const TrainerDashboard = () => {
               }
             })
           );
-          setAthleteNames(namesMap);
+          if (isMounted) {
+            setAthleteNames(namesMap);
+          }
         }
 
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Failed to initialize trainer:', error);
-        toast.error('Failed to load trainer data');
-        router.push('/signin');
+        if (isMounted) {
+          toast.error('Failed to load trainer data');
+          setLoading(false);
+        }
       }
     };
 
     initializeTrainer();
-  }, [router]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authStatus, jwtToken, router]);
 
   // Enrich athletes with names
   const enrichedAthletes = useMemo(() => {
@@ -106,14 +126,14 @@ const TrainerDashboard = () => {
     });
   }, [athletes, athleteNames]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('trainerData');
-    localStorage.removeItem('jwtToken');
+  const handleLogout = async () => {
+    await dispatch(logoutTrainer());
     toast.success('Logged out successfully');
     router.push('/');
   };
 
-  if (loading) return <LoadingOverlay />;
+  if (authStatus === 'unauthenticated') return null;
+  if (authStatus === 'idle' || authStatus === 'loading' || loading) return <LoadingOverlay />;
   if (!trainer) return null;
 
   const sidebarWidth = sidebarCollapsed ? 'w-[72px]' : 'w-64';

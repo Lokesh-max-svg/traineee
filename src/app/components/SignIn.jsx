@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FaEnvelope, FaLock, FaEyeSlash } from 'react-icons/fa';
 import { MdOutlineVisibility } from 'react-icons/md';
@@ -9,17 +9,34 @@ import { auth, googleProvider } from '../api/firebase';
 import { useRouter } from 'next/navigation';
 import LoadingOverlay from './LoadingOverlay';
 import { toast } from 'sonner';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { loginWithFirebaseToken } from '../store/authSlice';
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function SignInForm() {
+  const dispatch = useAppDispatch();
+  const authStatus = useAppSelector((state) => state.auth.status);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const isLoading = loadingAction !== null;
+
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      router.replace('/trainer');
+    }
+  }, [authStatus, router]);
 
 
  const handleEmailLogin = async (e) => {
   e?.preventDefault();
+
+  if (isLoading) {
+    return;
+  }
 
   if (!email.trim()) {
     toast.error('Please enter your email');
@@ -31,7 +48,8 @@ function SignInForm() {
     return;
   }
 
-  setLoading(true);
+  setLoadingAction('email');
+  let shouldResetLoading = true;
 
   try {
     // Step 1: Authenticate with Firebase using email/password
@@ -41,34 +59,13 @@ function SignInForm() {
     const firebaseToken = await userCredential.user.getIdToken();
 
     // Step 3: Send Firebase token to trainer app backend
-    const API_BASE_URL =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    const loginRes = await fetch(`${API_BASE_URL}/trainer-app/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firebaseToken }),
-    });
-
-    const loginData = await loginRes.json();
-
-    if (!loginRes.ok) {
-      throw new Error(loginData.error || 'Login failed');
-    }
-
-    if (!loginData.success) {
-      throw new Error(loginData.error || 'Backend authentication failed');
-    }
-
-    // Step 4: Store JWT token and trainer data
-    const jwtToken = loginData.data.token;
-    const trainerData = loginData.data.trainer;
-
-    localStorage.setItem('jwtToken', jwtToken);
-    localStorage.setItem('trainerData', JSON.stringify(trainerData));
+    await dispatch(loginWithFirebaseToken(firebaseToken)).unwrap();
 
     toast.success('Login successful!');
+    await wait(800);
+    shouldResetLoading = false;
     router.push('/trainer');
+    return;
 
   } catch (err) {
     if (process.env.NODE_ENV === 'development') console.error('Login error:', err);
@@ -95,47 +92,36 @@ function SignInForm() {
 
     toast.error(errorMessage);
   } finally {
-    setLoading(false);
+    if (shouldResetLoading) {
+      setLoadingAction(null);
+    }
   }
 };
 
   // Google Login - Get token from Firebase, send to trainer app backend
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    if (isLoading) {
+      return;
+    }
+
+    setLoadingAction('google');
+    let shouldResetLoading = true;
 
     try {
       // Step 1: Get Google credentials via Firebase popup
+      const result = await signInWithPopup(auth, googleProvider);
 
       // Step 2: Get Firebase ID token
       const firebaseToken = await result.user.getIdToken();
 
       // Step 3: Send Firebase token to trainer app backend
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${API_BASE_URL}/api/trainer-app/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firebaseToken }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Google login failed');
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Backend authentication failed');
-      }
-
-      // Step 4: Store JWT token and trainer data
-      const jwtToken = data.data.token;
-      const trainerData = data.data.trainer;
-
-      localStorage.setItem('jwtToken', jwtToken);
-      localStorage.setItem('trainerData', JSON.stringify(trainerData));
+      await dispatch(loginWithFirebaseToken(firebaseToken)).unwrap();
 
       toast.success('Login successful!');
+      await wait(800);
+      shouldResetLoading = false;
       router.push('/trainer');
+      return;
       
     } catch (err) {
       if (process.env.NODE_ENV === 'development') console.error('Google login error:', err);
@@ -162,13 +148,15 @@ function SignInForm() {
 
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (shouldResetLoading) {
+        setLoadingAction(null);
+      }
     }
   };
 
   return (
     <div className="flex bg-gradient-to-r  text-white relative min-h-screen">
-      {loading && <LoadingOverlay />}
+      {isLoading && <LoadingOverlay />}
 
       <div className="flex flex-col px-4 sm:px-6 mx-auto my-8 w-full max-w-sm z-10">
         <h1 className="text-3xl font-bold text-[#A4FEB7] mb-1">Sign in</h1>
@@ -188,6 +176,7 @@ function SignInForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter Your Email"
                 required
+                disabled={isLoading}
                 className="w-full pl-10 pr-4 py-2 bg-transparent border border-white rounded-2xl placeholder-gray-400 focus:outline-none focus:border-[#A4FEB7]"
               />
             </div>
@@ -204,10 +193,12 @@ function SignInForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 required
+                disabled={isLoading}
                 className="w-full pl-10 pr-10 py-2 bg-transparent border border-white rounded-2xl placeholder-gray-400 focus:outline-none focus:border-[#A4FEB7]"
               />
               <button
                 type="button"
+                disabled={isLoading}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute top-3 right-4 text-gray-400 hover:text-white"
               >
@@ -222,10 +213,10 @@ function SignInForm() {
           {/* Sign In Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full py-2 rounded-xl bg-[#A4FEB7] text-black font-semibold text-base cursor-pointer hover:bg-[#8ef0a5] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loadingAction === 'email' ? 'Signing in...' : 'Sign in'}
           </button>
 
           {/* OR Divider */}
@@ -235,16 +226,16 @@ function SignInForm() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            disabled={loading}
+            disabled={isLoading}
             className="w-full py-2 flex items-center justify-center border border-gray-500 rounded-xl text-white hover:bg-gray-800 cursor-pointer text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FcGoogle className="mr-2 text-lg" />
-            Sign in with Google
+            {loadingAction === 'google' ? 'Signing in with Google...' : 'Sign in with Google'}
           </button>
 
           {/* Sign Up Link */}
           <p className="text-gray-400 text-xs text-center">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-blue-400 hover:underline">
               Sign Up
             </Link>
